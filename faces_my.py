@@ -10,7 +10,7 @@ import dlib
 import os
 import random
 
-faces_my_path = './faces_my2'
+faces_my_path = 'faces_hcs'
 size = 64
 if not os.path.exists(faces_my_path):
     os.makedirs(faces_my_path)
@@ -36,7 +36,7 @@ detector = dlib.get_frontal_face_detector()
 cap = cv2.VideoCapture(0)    # 0-默认笔记本电脑自带的摄像头，1-外接摄像头
 num = 1
 while True:
-    if (num <= 1000):
+    if (num <= 200):
         print('time %s' % num)
         success, img = cap.read()
         gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)

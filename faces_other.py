@@ -13,7 +13,7 @@ import os
 import dlib
 
 source_path = './img_source'
-faces_other_path = './faces_other2'
+faces_other_path = 'faces_other'
 size = 64
 if not os.path.exists(faces_other_path):
     os.makedirs(faces_other_path)

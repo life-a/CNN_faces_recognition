@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 loss = []
 step = []
 # file_path = './model_two/loss.txt'
-file_path = './model_multi/loss.txt'
+file_path = './model_multi_person/loss.txt'
 t = 0
 with open(file_path, 'r') as file:
     lines = file.readlines()
