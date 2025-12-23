@@ -25,7 +25,7 @@ import net
 class ImprovedFaceRecognizer:
     """改进的人脸识别器，解决总是识别为同一个人的问题"""
 
-    def __init__(self, model_path='./model_balanced/'):
+    def __init__(self, model_path='./model_multi_class/'):
         self.model_path = model_path
         self.sess = None
         self.outdata = None
@@ -299,7 +299,7 @@ def main():
     print("=" * 60)
 
     # 创建识别器实例 - 先尝试新的平衡模型
-    recognizer = ImprovedFaceRecognizer(model_path='./model_balanced/')
+    recognizer = ImprovedFaceRecognizer(model_path='model_multi_class/')
 
     # 加载模型
     if not recognizer.load_model():
