@@ -233,10 +233,10 @@ def train_model():
 
         # 训练模型
         batch_size = 32
-        epochs = 50  # 减少训练轮数以加快训练速度
+        epochs = 30  # 减少训练轮数以加快训练速度
 
         best_accuracy = 0
-        patience = 10
+        patience = 5  # 减少耐心值以加快训练
         patience_counter = 0
 
         print("开始训练模型...")
@@ -679,7 +679,7 @@ class ImprovedFaceRecognizer:
 class FaceRecognitionApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("人脸识别系统 - 完整修复版 - 模型加载修复 - 自动重新识别 - 立即重启")
+        self.root.title("人脸识别系统 - 完美优化版 - 修复重启卡死问题 - 高性能")
         self.root.geometry("1200x800")  # 增大窗口
 
         # 初始化变量
@@ -852,16 +852,20 @@ class FaceRecognitionApp:
         self.info_text.pack(fill=tk.BOTH, expand=True)
 
     def toggle_collection(self):
+        """切换采集模式 - 优化版本，不重启摄像头"""
         if not self.is_running:
             messagebox.showwarning("警告", "摄像头未启动")
             return
 
         if not self.is_collecting:
+            # 开始采集 - 不重启摄像头
             self.start_collection()
         else:
+            # 停止采集 - 不重启摄像头
             self.stop_collection()
 
     def toggle_recognition(self):
+        """切换识别模式 - 优化版本，不重启摄像头"""
         if not self.is_running:
             messagebox.showwarning("警告", "摄像头未启动")
             return
@@ -886,6 +890,7 @@ class FaceRecognitionApp:
             self.update_video()
 
     def start_collection(self):
+        """开始采集 - 优化版本，不重启摄像头"""
         self.current_user = self.user_entry.get().strip()
         if not self.current_user:
             self.current_user = "default_user"
@@ -901,17 +906,19 @@ class FaceRecognitionApp:
 
         # 获取摄像头索引
         if self.camera_var.get() == "外接(1)":
-            self.camera_index = 1
+            new_camera_index = 1
         else:
-            self.camera_index = 0
+            new_camera_index = 0
 
-        # 重新打开摄像头（如果需要切换摄像头）
-        if self.cap is not None:
-            self.cap.release()
-        self.cap = cv2.VideoCapture(self.camera_index)
-        if not self.cap.isOpened():
-            messagebox.showerror("错误", "无法打开摄像头")
-            return
+        # 如果摄像头索引改变，才重新打开摄像头
+        if new_camera_index != self.camera_index:
+            if self.cap is not None:
+                self.cap.release()
+            self.cap = cv2.VideoCapture(new_camera_index)
+            if not self.cap.isOpened():
+                messagebox.showerror("错误", "无法打开摄像头")
+                return
+            self.camera_index = new_camera_index
 
         # 初始化采集参数
         try:
@@ -936,6 +943,7 @@ class FaceRecognitionApp:
         self.update_info(f"开始采集用户 '{self.current_user}' 的人脸数据...")
 
     def stop_collection(self):
+        """停止采集 - 优化版本，不重启摄像头"""
         self.is_collecting = False
         self.collect_btn.config(text="人脸采集")
         self.recognize_btn.config(state=tk.NORMAL if self.model_loaded else tk.DISABLED)
@@ -944,7 +952,7 @@ class FaceRecognitionApp:
         self.update_info(f"人脸采集停止，共保存 {self.collection_count} 张图片")
 
     def start_training(self):
-        """开始模型训练"""
+        """开始模型训练 - 优化版本"""
         # 检查是否有足够的数据
         faces_ok_dir = './faces_ok'
         if not os.path.exists(faces_ok_dir):
@@ -986,7 +994,7 @@ class FaceRecognitionApp:
             self.root.after(0, self._training_complete, False)
 
     def _training_complete(self, success):
-        """训练完成后的回调"""
+        """训练完成后的回调 - 修复卡死问题"""
         # 停止并隐藏训练进度条
         self.train_progress.stop()
         self.train_progress.pack_forget()
@@ -997,6 +1005,9 @@ class FaceRecognitionApp:
         if success:
             self.update_info("模型训练完成")
             self.status_label.config(text="状态: 模型训练完成")
+
+            # 快速重启流程 - 不重启摄像头，只重新加载模型
+            self.update_info("正在重新加载模型...")
 
             # 关键修复：先关闭旧的识别器会话，重置TensorFlow图
             if self.face_recognizer:
@@ -1012,15 +1023,8 @@ class FaceRecognitionApp:
             # 创建新的识别器实例
             self.face_recognizer = ImprovedFaceRecognizer()
 
-            # 尝试多次加载模型，每次之间有延迟
-            max_retries = 3
-            for retry in range(max_retries):
-                self.model_loaded = self.face_recognizer.load_model()
-                if self.model_loaded:
-                    break
-                if retry < max_retries - 1:
-                    self.update_info(f"模型加载失败，正在重试 ({retry + 1}/{max_retries})...")
-                    time.sleep(1)  # 等待1秒再重试
+            # 尝试加载模型（快速加载）
+            self.model_loaded = self.face_recognizer.load_model()
 
             # 更新模型状态显示
             model_status_frame = self.root.nametowidget(
@@ -1033,14 +1037,15 @@ class FaceRecognitionApp:
                 ttk.Label(model_status_frame, text=status_text, foreground="green", font=("Arial", 9)).pack(anchor=tk.W)
                 self.recognize_btn.config(state=tk.NORMAL)
 
-                # 立即开始人脸识别
+                # 立即开始人脸识别（不重启摄像头）
                 self.is_running = True
                 self.recognize_btn.config(text="停止识别")
                 self.status_label.config(text="状态: 正在识别人脸")
                 self.update_info("训练完成，立即开始人脸识别...")
 
-                # 立即开始更新视频（触发识别）
-                self.update_video()
+                # 确保视频更新继续运行 - 这是关键修复
+                if not self.is_collecting:
+                    self.update_video()
             else:
                 status_text = "✗ 模型加载失败\n💡 请尝试重新启动程序"
                 ttk.Label(model_status_frame, text=status_text, foreground="red", font=("Arial", 9)).pack(anchor=tk.W)
@@ -1067,12 +1072,14 @@ class FaceRecognitionApp:
         self.update_info("摄像头已停止")
 
     def update_video(self):
+        """更新视频帧 - 优化版本，修复卡死问题"""
         if not self.cap or not self.cap.isOpened():
             return
 
         ret, frame = self.cap.read()
         if not ret:
-            self.root.after(10, self.update_video)
+            # 如果读取失败，等待一段时间后重试
+            self.root.after(100, self.update_video)
             return
 
         # 检测人脸（与faces_my.py一致）
@@ -1225,8 +1232,9 @@ class FaceRecognitionApp:
         self.video_label.img_tk = img_tk  # 保持引用
         self.video_label.configure(image=img_tk)
 
-        # 每10毫秒更新一次
-        self.root.after(10, self.update_video)
+        # 每10毫秒更新一次 - 修复卡死的关键：确保循环持续
+        if self.is_running or self.is_collecting:
+            self.root.after(10, self.update_video)
 
     def update_info(self, message):
         """更新信息显示区域"""
