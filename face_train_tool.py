@@ -13,54 +13,57 @@ import os
 import time
 import matplotlib.pyplot as plt
 import sys
+
 import threading
+
+import face_net_tool
 
 # 启用v1兼容模式
 tf.compat.v1.disable_eager_execution()
 
 
-def layer_net_tf1(input_image, num_class, dropout_rate, dropout_rate_2):
-    """
-    TensorFlow 1.x 版本的layer_net函数
-    与主窗口中的layer_net函数保持一致
-    """
-    """第一、二层，输入图片64*64*3，输出图片32*32*32"""
-    w1 = tf.Variable(tf.random.normal([3, 3, 3, 32]), name='w1')  # 卷积核大小(3,3)， 输入通道(3)， 输出通道(32)
-    b1 = tf.Variable(tf.random.normal([32]), name='b1')
-    layer_conv1 = tf.nn.relu(
-        tf.nn.conv2d(input_image, w1, strides=[1, 1, 1, 1], padding='SAME') + b1)  # 64*64*32，卷积提取特征，增加通道数
-    layer_pool1 = tf.nn.max_pool2d(layer_conv1, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1],
-                                   padding='SAME')  # 32*32*32，池化降维，减小复杂度
-    drop1 = tf.nn.dropout(layer_pool1, rate=1 - dropout_rate)  # 按一定概率随机丢弃一些神经元，以获得更高的训练速度以及防止过拟合
-
-    """第三、四层，输入图片32*32*32，输出图片16*16*64"""
-    w2 = tf.Variable(tf.random.normal([3, 3, 32, 64]), name='w2')  # 卷积核大小(3,3)， 输入通道(32)， 输出通道(64)
-    b2 = tf.Variable(tf.random.normal([64]), name='b2')
-    layer_conv2 = tf.nn.relu(tf.nn.conv2d(drop1, w2, strides=[1, 1, 1, 1], padding='SAME') + b2)  # 32*32*64
-    layer_pool2 = tf.nn.max_pool2d(layer_conv2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')  # 16*16*64
-    drop2 = tf.nn.dropout(layer_pool2, rate=1 - dropout_rate)
-
-    """第五、六层，输入图片16*16*64，输出图片8*8*64"""
-    w3 = tf.Variable(tf.random.normal([3, 3, 64, 64]), name='w3')  # 卷积核大小(3,3)， 输入通道(64)， 输出通道(64)
-    b3 = tf.Variable(tf.random.normal([64]), name='b3')
-    layer_conv3 = tf.nn.relu(tf.nn.conv2d(drop2, w3, strides=[1, 1, 1, 1], padding='SAME') + b3)  # 16*16*64
-    layer_pool3 = tf.nn.max_pool2d(layer_conv3, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1],
-                                   padding='SAME')  # 8*8*64=4096
-    drop3 = tf.nn.dropout(layer_pool3, rate=1 - dropout_rate)
-
-    """第七层，全连接层，将图片的卷积输出压扁成一个一维向量，输入图片8*8*64，reshape到1*4096，输出1*512"""
-    w4 = tf.Variable(tf.random.normal([8 * 8 * 64, 512]), name='w4')  # 输入通道(4096)， 输出通道(512)
-    b4 = tf.Variable(tf.random.normal([512]), name='b4')
-    layer_fully_connected = tf.reshape(drop3, [-1, 8 * 8 * 64])  # -1表示行随着列的需求改变，1*4096
-    relu = tf.nn.relu(tf.matmul(layer_fully_connected, w4) + b4)  # [1,4096]*[4096,512]=[1,512]
-    drop4 = tf.nn.dropout(relu, rate=1 - dropout_rate_2)
-
-    """第八层，输出层，输入1*512，输出1*num_class"""
-    w5 = tf.Variable(tf.random.normal([512, num_class]), name='w5')  # 输入通道(512)， 输出通道(num_class)
-    b5 = tf.Variable(tf.random.normal([num_class]), name='b5')
-    outdata = tf.add(tf.matmul(drop4, w5), b5)  # (1,512)*(512,num_class)=(1,num_class)
-
-    return outdata
+# def layer_net_tf1(input_image, num_class, dropout_rate, dropout_rate_2):
+#     """
+#     TensorFlow 1.x 版本的layer_net函数
+#     与主窗口中的layer_net函数保持一致
+#     """
+#     """第一、二层，输入图片64*64*3，输出图片32*32*32"""
+#     w1 = tf.Variable(tf.random.normal([3, 3, 3, 32]), name='w1')  # 卷积核大小(3,3)， 输入通道(3)， 输出通道(32)
+#     b1 = tf.Variable(tf.random.normal([32]), name='b1')
+#     layer_conv1 = tf.nn.relu(
+#         tf.nn.conv2d(input_image, w1, strides=[1, 1, 1, 1], padding='SAME') + b1)  # 64*64*32，卷积提取特征，增加通道数
+#     layer_pool1 = tf.nn.max_pool2d(layer_conv1, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1],
+#                                    padding='SAME')  # 32*32*32，池化降维，减小复杂度
+#     drop1 = tf.nn.dropout(layer_pool1, rate=1 - dropout_rate)  # 按一定概率随机丢弃一些神经元，以获得更高的训练速度以及防止过拟合
+#
+#     """第三、四层，输入图片32*32*32，输出图片16*16*64"""
+#     w2 = tf.Variable(tf.random.normal([3, 3, 32, 64]), name='w2')  # 卷积核大小(3,3)， 输入通道(32)， 输出通道(64)
+#     b2 = tf.Variable(tf.random.normal([64]), name='b2')
+#     layer_conv2 = tf.nn.relu(tf.nn.conv2d(drop1, w2, strides=[1, 1, 1, 1], padding='SAME') + b2)  # 32*32*64
+#     layer_pool2 = tf.nn.max_pool2d(layer_conv2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')  # 16*16*64
+#     drop2 = tf.nn.dropout(layer_pool2, rate=1 - dropout_rate)
+#
+#     """第五、六层，输入图片16*16*64，输出图片8*8*64"""
+#     w3 = tf.Variable(tf.random.normal([3, 3, 64, 64]), name='w3')  # 卷积核大小(3,3)， 输入通道(64)， 输出通道(64)
+#     b3 = tf.Variable(tf.random.normal([64]), name='b3')
+#     layer_conv3 = tf.nn.relu(tf.nn.conv2d(drop2, w3, strides=[1, 1, 1, 1], padding='SAME') + b3)  # 16*16*64
+#     layer_pool3 = tf.nn.max_pool2d(layer_conv3, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1],
+#                                    padding='SAME')  # 8*8*64=4096
+#     drop3 = tf.nn.dropout(layer_pool3, rate=1 - dropout_rate)
+#
+#     """第七层，全连接层，将图片的卷积输出压扁成一个一维向量，输入图片8*8*64，reshape到1*4096，输出1*512"""
+#     w4 = tf.Variable(tf.random.normal([8 * 8 * 64, 512]), name='w4')  # 输入通道(4096)， 输出通道(512)
+#     b4 = tf.Variable(tf.random.normal([512]), name='b4')
+#     layer_fully_connected = tf.reshape(drop3, [-1, 8 * 8 * 64])  # -1表示行随着列的需求改变，1*4096
+#     relu = tf.nn.relu(tf.matmul(layer_fully_connected, w4) + b4)  # [1,4096]*[4096,512]=[1,512]
+#     drop4 = tf.nn.dropout(relu, rate=1 - dropout_rate_2)
+#
+#     """第八层，输出层，输入1*512，输出1*num_class"""
+#     w5 = tf.Variable(tf.random.normal([512, num_class]), name='w5')  # 输入通道(512)， 输出通道(num_class)
+#     b5 = tf.Variable(tf.random.normal([num_class]), name='b5')
+#     outdata = tf.add(tf.matmul(drop4, w5), b5)  # (1,512)*(512,num_class)=(1,num_class)
+#
+#     return outdata
 
 
 class BalancedDataLoader:
@@ -119,22 +122,22 @@ class BalancedDataLoader:
                 augmented.append(img.copy())
         return augmented
 
-    def load_balanced_data(self, faces_ok_dir, faces_no_dir, size=64):
+    def load_balanced_data(self, faces_user_dir, faces_stranger_dir, size=64):
         """加载并平衡数据"""
         imgs = []
         labs = []
         class_names = []
 
-        # 获取faces_ok下的所有人员目录
+        # 获取faces_user下的所有人员目录
         person_dirs = []
-        for item in os.listdir(faces_ok_dir):
-            item_path = os.path.join(faces_ok_dir, item)
+        for item in os.listdir(faces_user_dir):
+            item_path = os.path.join(faces_user_dir, item)
             if os.path.isdir(item_path):
                 person_dirs.append((item, item_path))
                 class_names.append(item)
 
         if not person_dirs:
-            print(f"错误: {faces_ok_dir} 中没有找到人员目录")
+            print(f"错误: {faces_user_dir} 中没有找到人员目录")
             return None, None, None
 
         # 添加陌生人类别
@@ -155,8 +158,8 @@ class BalancedDataLoader:
 
         # 统计陌生人图片数量
         stranger_files = []
-        if os.path.exists(faces_no_dir):
-            stranger_files = [f for f in os.listdir(faces_no_dir)
+        if os.path.exists(faces_stranger_dir):
+            stranger_files = [f for f in os.listdir(faces_stranger_dir)
                               if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
         class_counts["陌生人"] = len(stranger_files)
         print(f"   陌生人: {len(stranger_files)} 张原始图片")
@@ -220,7 +223,7 @@ class BalancedDataLoader:
 
         # 第四步：加载并平衡陌生人数据
         print(f"\n📥 加载陌生人数据...")
-        if os.path.exists(faces_no_dir) and stranger_files:
+        if os.path.exists(faces_stranger_dir) and stranger_files:
             # 如果陌生人图片太多，随机选择
             if len(stranger_files) > target_per_class:
                 selected_files = random.sample(stranger_files, target_per_class)
@@ -231,7 +234,7 @@ class BalancedDataLoader:
             need_augment = target_per_class - len(selected_files)
 
             for file_idx, filename in enumerate(selected_files):
-                img_path = os.path.join(faces_no_dir, filename)
+                img_path = os.path.join(faces_stranger_dir, filename)
                 img = cv2.imread(img_path)
 
                 if img is not None:
@@ -283,8 +286,8 @@ class FaceModelTrainer:
     """人脸识别模型训练工具类"""
 
     def __init__(self,
-                 faces_ok_dir='./faces_ok',
-                 faces_no_dir='./faces_no',
+                 faces_user_dir='./faces_user',
+                 faces_stranger_dir='./faces_stranger',
                  model_dir='./model_multi_class',
                  size=64,
                  batch_size=32,
@@ -296,8 +299,8 @@ class FaceModelTrainer:
         初始化训练器
 
         Args:
-            faces_ok_dir: 已知人脸数据目录
-            faces_no_dir: 陌生人数据目录
+            faces_user_dir: 已知人脸数据目录
+            faces_stranger_dir: 陌生人数据目录
             model_dir: 模型保存目录
             size: 图像大小
             batch_size: 批次大小
@@ -306,8 +309,8 @@ class FaceModelTrainer:
             num_epochs: 训练轮数
             patience: 早停耐心值
         """
-        self.faces_ok_dir = faces_ok_dir
-        self.faces_no_dir = faces_no_dir
+        self.faces_user_dir = faces_user_dir
+        self.faces_stranger_dir = faces_stranger_dir
         self.model_dir = model_dir
         self.size = size
         self.batch_size = batch_size
@@ -338,13 +341,13 @@ class FaceModelTrainer:
         """检查必要的目录是否存在"""
         print("检查项目目录...")
 
-        if not os.path.exists(self.faces_ok_dir):
-            print(f"❌ 错误: {self.faces_ok_dir} 目录不存在")
+        if not os.path.exists(self.faces_user_dir):
+            print(f"❌ 错误: {self.faces_user_dir} 目录不存在")
             return False
 
-        if not os.path.exists(self.faces_no_dir):
-            print(f"⚠️ 警告: {self.faces_no_dir} 目录不存在，将生成虚拟陌生人数据")
-            os.makedirs(self.faces_no_dir, exist_ok=True)
+        if not os.path.exists(self.faces_stranger_dir):
+            print(f"⚠️ 警告: {self.faces_stranger_dir} 目录不存在，将生成虚拟陌生人数据")
+            os.makedirs(self.faces_stranger_dir, exist_ok=True)
 
         # 创建模型目录
         if os.path.exists(self.model_dir):
@@ -365,7 +368,7 @@ class FaceModelTrainer:
 
         # 加载数据
         imgs, labs, class_names = data_loader.load_balanced_data(
-            self.faces_ok_dir, self.faces_no_dir, self.size
+            self.faces_user_dir, self.faces_stranger_dir, self.size
         )
 
         if imgs is None:
@@ -419,7 +422,7 @@ class FaceModelTrainer:
         self.dropout_rate_2 = tf.compat.v1.placeholder(tf.float32)
 
         # 构建网络
-        self.outdata = layer_net_tf1(self.input_image, self.num_classes,
+        self.outdata = face_net_tool.layer_net(self.input_image, self.num_classes,
                                      self.dropout_rate, self.dropout_rate_2)
 
         # 定义损失函数（带类别权重）
@@ -637,8 +640,8 @@ if __name__ == '__main__':
 
     # 创建训练器实例
     trainer = FaceModelTrainer(
-        faces_ok_dir='./faces_ok',
-        faces_no_dir='./faces_no',
+        faces_user_dir='faces_user',
+        faces_stranger_dir='faces_stranger',
         model_dir='./model_multi_class',
         size=64,
         batch_size=32,
